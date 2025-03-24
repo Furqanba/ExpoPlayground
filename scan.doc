@@ -1,0 +1,69 @@
+import SQLite from 'react-native-sqlite-storage';
+
+const db = SQLite.openDatabase(
+  { name: 'mydb.db', location: 'default' },
+  () => console.log('Database Opened'),
+  error => console.log('Database Error:', error)
+);
+
+export const createTable = () => {
+  db.transaction(tx => {
+    tx.executeSql(
+      `CREATE TABLE IF NOT EXISTS records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        image TEXT,
+        type TEXT,
+        date TEXT,
+        useSelfExam INTEGER
+      );`,
+      [],
+      () => console.log('Table Created'),
+      error => console.log('Create Table Error:', error)
+    );
+  });
+};
+
+export const insertRecord = (name, image, type, date, useSelfExam, callback) => {
+  db.transaction(tx => {
+    tx.executeSql(
+      'INSERT INTO records (name, image, type, date, useSelfExam) VALUES (?, ?, ?, ?, ?);',
+      [name, image, type, date, useSelfExam ? 1 : 0],
+      (_, result) => callback(result.insertId),
+      error => console.log('Insert Error:', error)
+    );
+  });
+};
+
+export const getRecords = callback => {
+  db.transaction(tx => {
+    tx.executeSql(
+      'SELECT * FROM records;',
+      [],
+      (_, { rows }) => callback(rows._array),
+      error => console.log('Fetch Error:', error)
+    );
+  });
+};
+
+export const updateRecord = (id, name, image, type, date, useSelfExam, callback) => {
+  db.transaction(tx => {
+    tx.executeSql(
+      'UPDATE records SET name=?, image=?, type=?, date=?, useSelfExam=? WHERE id=?;',
+      [name, image, type, date, useSelfExam ? 1 : 0, id],
+      (_, result) => callback(result.rowsAffected),
+      error => console.log('Update Error:', error)
+    );
+  });
+};
+
+export const deleteRecord = (id, callback) => {
+  db.transaction(tx => {
+    tx.executeSql(
+      'DELETE FROM records WHERE id=?;',
+      [id],
+      (_, result) => callback(result.rowsAffected),
+      error => console.log('Delete Error:', error)
+    );
+  });
+};
