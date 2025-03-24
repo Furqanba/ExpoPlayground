@@ -3,15 +3,13 @@ import {
   View,
   Text,
   TextInput,
-  Button,
-  FlatList,
   StyleSheet,
   TouchableOpacity,
   Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert, // ✅ Import Alert
+  Alert,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
@@ -27,13 +25,38 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from "react-native-responsive-screen";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-const HomeScreen = ({ navigation }) => {
-  const [entries, setEntries] = useState([]);
-  const [showEntries, setShowEntries] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+// Define navigation props type (replace RootStackParamList with your own type if you have one)
+type HomeScreenNavigationProp = NativeStackNavigationProp<any, "HomeScreen">;
 
-  const [formData, setFormData] = useState({
+type Props = {
+  navigation: HomeScreenNavigationProp;
+};
+
+// Define the type for your scanned data
+interface ScannedData {
+  id?: number;
+  imageByteArray: string;
+  bodyPartName: string;
+  bodyPartType: string;
+  risk: string;
+  assymetry: boolean;
+  irregularBorders: boolean;
+  variedColors: boolean;
+  diameterLargerThanSix: boolean;
+  selectedSkinColor: string;
+  analyzed: string;
+  timeStamp: number;
+  isSelected: boolean;
+  isFromselfExam: string | number | boolean;
+}
+
+const HomeScreen: React.FC<Props> = ({ navigation }) => {
+  const [entries, setEntries] = useState<ScannedData[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [formData, setFormData] = useState<ScannedData>({
     imageByteArray: "",
     bodyPartName: "",
     bodyPartType: "",
@@ -58,17 +81,22 @@ const HomeScreen = ({ navigation }) => {
       }
     })();
 
-    createTable().then(() => console.log("Table created"));
+    createTable().then(() => console.log("Table created ✅"));
     loadData();
   }, []);
 
   const loadData = () => {
-    fetchData((data) => {
+    fetchData((data: ScannedData[]) => {
       setEntries(data);
     });
   };
 
   const handleAddOrUpdate = () => {
+    if (!formData.bodyPartName || !formData.risk) {
+      Alert.alert("Validation", "Please fill in Body Part Name and Risk.");
+      return;
+    }
+
     if (editingId !== null) {
       updateData(editingId, formData, () => {
         loadData();
@@ -84,7 +112,7 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: number) => {
     Alert.alert(
       "Delete Confirmation",
       "Are you sure you want to delete this entry?",
@@ -104,23 +132,16 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
-  const handleEdit = (item) => {
+  const handleEdit = (item: ScannedData) => {
     setFormData({
-      imageByteArray: item.imageByteArray,
-      bodyPartName: item.bodyPartName,
-      bodyPartType: item.bodyPartType,
-      risk: item.risk,
-      assymetry: item.assymetry === 1,
-      irregularBorders: item.irregularBorders === 1,
-      variedColors: item.variedColors === 1,
-      diameterLargerThanSix: item.diameterLargerThanSix === 1,
-      selectedSkinColor: item.selectedSkinColor,
-      analyzed: item.analyzed,
-      timeStamp: item.timeStamp,
-      isSelected: item.isSelected === 1,
-      isFromselfExam: item.isFromselfExam,
+      ...item,
+      assymetry: Boolean(item.assymetry),
+      irregularBorders: Boolean(item.irregularBorders),
+      variedColors: Boolean(item.variedColors),
+      diameterLargerThanSix: Boolean(item.diameterLargerThanSix),
+      isSelected: Boolean(item.isSelected),
     });
-    setEditingId(item.id);
+    setEditingId(item.id ?? null);
   };
 
   const clearForm = () => {
@@ -142,12 +163,15 @@ const HomeScreen = ({ navigation }) => {
     setEditingId(null);
   };
 
-  const handleChange = (name, value) => {
-    setFormData({ ...formData, [name]: value });
+  const handleChange = (name: keyof ScannedData, value: any) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const toggleBoolean = (name) => {
-    setFormData({ ...formData, [name]: !formData[name] });
+  const toggleBoolean = (name: keyof ScannedData) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: !prev[name] as boolean,
+    }));
   };
 
   const pickImage = async () => {
@@ -157,9 +181,12 @@ const HomeScreen = ({ navigation }) => {
       quality: 0.7,
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets && result.assets.length > 0) {
       const base64Image = result.assets[0].base64;
-      setFormData({ ...formData, imageByteArray: base64Image });
+      setFormData((prev) => ({
+        ...prev,
+        imageByteArray: base64Image || "",
+      }));
     }
   };
 
@@ -193,6 +220,7 @@ const HomeScreen = ({ navigation }) => {
         value={formData.bodyPartName}
         onChangeText={(text) => handleChange("bodyPartName", text)}
       />
+
       <TextInput
         style={styles.input}
         placeholder="Body Part Type"
@@ -200,6 +228,7 @@ const HomeScreen = ({ navigation }) => {
         value={formData.bodyPartType}
         onChangeText={(text) => handleChange("bodyPartType", text)}
       />
+
       <TextInput
         style={styles.input}
         placeholder="Risk"
@@ -220,6 +249,7 @@ const HomeScreen = ({ navigation }) => {
             Assymetry: {formData.assymetry ? "Yes" : "No"}
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[
             styles.toggleButton,
@@ -245,6 +275,7 @@ const HomeScreen = ({ navigation }) => {
             Varied Colors: {formData.variedColors ? "Yes" : "No"}
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={[
             styles.toggleButton,
@@ -290,7 +321,7 @@ const HomeScreen = ({ navigation }) => {
         style={styles.input}
         placeholder="Is From Self Exam (1/0/true/false)"
         placeholderTextColor="#999"
-        value={formData.isFromselfExam.toString()}
+        value={String(formData.isFromselfExam)}
         onChangeText={(text) => handleChange("isFromselfExam", text)}
       />
 
@@ -306,57 +337,11 @@ const HomeScreen = ({ navigation }) => {
 
       <TouchableOpacity
         style={styles.showEntriesBtn}
-        onPress={() => setShowEntries(!showEntries)}
+        onPress={() => navigation.navigate("StoredEntries")}
         activeOpacity={0.8}
       >
-        <Text style={styles.showEntriesBtnText}>
-          {showEntries ? "Hide Stored Entries" : "Show Stored Entries"}
-        </Text>
+        <Text style={styles.showEntriesBtnText}>Show Stored Entries</Text>
       </TouchableOpacity>
-    </View>
-  );
-
-  const renderEntryItem = ({ item }) => (
-    <View style={styles.listItem}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.entryTitle}>
-          {item.bodyPartName} - Risk: {item.risk}
-        </Text>
-
-        {item.imageByteArray ? (
-          <Image
-            source={{
-              uri: `data:image/jpeg;base64,${item.imageByteArray}`,
-            }}
-            style={styles.listImage}
-          />
-        ) : (
-          <Text style={styles.noImageText}>No Image</Text>
-        )}
-      </View>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          onPress={() => handleEdit(item)}
-          style={styles.actionBtn}
-        >
-          <Text style={styles.editBtn}>Edit</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => handleDelete(item.id)}
-          style={styles.actionBtn}
-        >
-          <Text style={styles.deleteBtn}>Delete</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Details", { item })}
-          style={styles.actionBtn}
-        >
-          <Text style={styles.detailsBtn}>Show Details</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 
@@ -368,18 +353,6 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.container}>
         {renderForm()}
       </ScrollView>
-
-      {showEntries && (
-        <FlatList
-          data={entries}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderEntryItem}
-          contentContainerStyle={styles.flatListContainer}
-          ListHeaderComponent={
-            <Text style={styles.listTitle}>Stored Entries</Text>
-          }
-        />
-      )}
     </KeyboardAvoidingView>
   );
 };
@@ -476,53 +449,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: wp("4.5%"),
     textAlign: "center",
-  },
-  listTitle: {
-    fontSize: wp("5%"),
-    fontWeight: "bold",
-    textAlign: "center",
-    marginVertical: 10,
-  },
-  listItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "#fff",
-    padding: 12,
-    marginVertical: 6,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  listImage: {
-    width: wp("20%"),
-    height: hp("10%"),
-    borderRadius: 8,
-    marginTop: 5,
-  },
-  entryTitle: {
-    fontSize: wp("4%"),
-    fontWeight: "600",
-    color: "#333",
-  },
-  actions: {
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  actionBtn: {
-    marginVertical: 2,
-  },
-  editBtn: {
-    color: "#2196F3",
-    fontWeight: "bold",
-  },
-  deleteBtn: {
-    color: "#F44336",
-    fontWeight: "bold",
-  },
-  detailsBtn: {
-    color: "#4caf50",
-    fontWeight: "bold",
   },
 });
